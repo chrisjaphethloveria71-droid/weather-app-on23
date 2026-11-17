@@ -209,6 +209,19 @@
     .section-heading h2 { margin: 0; font-size: 16px; font-weight: 720; letter-spacing: -.025em; }
     .section-heading span { color: var(--muted); font-size: 12px; }
     .forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
+    .hourly-forecast { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+    .hour-card {
+      min-width: 0;
+      padding: 12px 4px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--surface);
+      text-align: center;
+    }
+    .hour-time { color: var(--muted); font-size: 11px; font-weight: 650; }
+    .hour-icon { display: block; margin: 10px 0; font-size: 20px; }
+    .hour-temp { font-size: 13px; font-weight: 700; }
+    .hour-rain { margin-top: 7px; color: var(--blue); font-size: 10px; }
     .day-card {
       min-width: 0;
       padding: 15px 5px 14px;
@@ -236,6 +249,7 @@
       .metric { padding: 10px 7px; }
       .day-card { padding-right: 2px; padding-left: 2px; }
       .forecast { gap: 6px; }
+      .hourly-forecast { grid-template-columns: repeat(6, minmax(58px, 1fr)); overflow-x: auto; padding: 3px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
@@ -294,6 +308,14 @@
       </div>
     </section>
 
+    <section class="forecast-section" aria-labelledby="hourly-title">
+      <div class="section-heading">
+        <h2 id="hourly-title">Next 18 hours</h2>
+        <span>3-hour intervals</span>
+      </div>
+      <div class="hourly-forecast" id="hourly-forecast" role="list"></div>
+    </section>
+
     <section class="forecast-section" aria-labelledby="forecast-title">
       <div class="section-heading">
         <h2 id="forecast-title">5-day forecast</h2>
@@ -307,6 +329,12 @@
   <script>
     const fallback = {
       current: { temperature_2m: 29, apparent_temperature: 33, relative_humidity_2m: 78, wind_speed_10m: 8, weather_code: 2 },
+      hourly: {
+        time: [],
+        temperature_2m: [28, 28, 29, 30, 31, 31, 30, 29],
+        weather_code: [2, 2, 1, 1, 0, 0, 1, 2],
+        precipitation_probability: [10, 10, 5, 5, 5, 10, 15, 20]
+      },
       daily: {
         time: [],
         weather_code: [2, 3, 61, 2, 1],
@@ -339,11 +367,28 @@
 
     function fallbackForToday() {
       const today = new Date();
-      const localDate = (offset) => {
-        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+      const localDate = (date) => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       };
-      return { ...fallback, daily: { ...fallback.daily, time: [0, 1, 2, 3, 4].map(localDate) } };
+      const dates = [0, 1, 2, 3, 4].map((offset) => localDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)));
+      const hourlyTimes = Array.from({ length: 24 }, (_, offset) => {
+        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate(), today.getHours() + offset);
+        return `${localDate(date)}T${String(date.getHours()).padStart(2, "0")}:00`;
+      });
+      const currentTime = `${localDate(today)}T${String(today.getHours()).padStart(2, "0")}:00`;
+      const hourly = {
+        ...fallback.hourly,
+        time: hourlyTimes,
+        temperature_2m: hourlyTimes.map((_, index) => fallback.hourly.temperature_2m[index % fallback.hourly.temperature_2m.length]),
+        weather_code: hourlyTimes.map((_, index) => fallback.hourly.weather_code[index % fallback.hourly.weather_code.length]),
+        precipitation_probability: hourlyTimes.map((_, index) => fallback.hourly.precipitation_probability[index % fallback.hourly.precipitation_probability.length])
+      };
+      return {
+        ...fallback,
+        current: { ...fallback.current, time: currentTime },
+        hourly,
+        daily: { ...fallback.daily, time: dates }
+      };
     }
 
     const weatherForCode = (code) => {
@@ -382,6 +427,27 @@
         hour: "numeric", minute: "2-digit", timeZone: timezone || undefined
       }).format(today);
       $("date").textContent = `${localDate} · ${localTime} local`;
+
+      const hourlyForecast = $("hourly-forecast");
+      hourlyForecast.replaceChildren();
+      const hourly = data.hourly;
+      const firstHour = Math.max(0, hourly.time.findIndex((time) => time >= current.time));
+      for (let step = 0; step < 6; step += 1) {
+        const index = firstHour + step * 3;
+        if (index >= hourly.time.length) break;
+        const hourText = hourly.time[index].slice(11, 13);
+        const hour = Number(hourText);
+        const isCurrentHour = hourly.time[index].slice(0, 13) === current.time.slice(0, 13);
+        const label = isCurrentHour ? "Now" : `${hour % 12 || 12}${hour < 12 ? "a" : "p"}`;
+        const [hourCondition, hourIcon] = weatherForCode(hourly.weather_code[index]);
+        const rain = hourly.precipitation_probability[index];
+        const card = document.createElement("article");
+        card.className = "hour-card";
+        card.setAttribute("role", "listitem");
+        card.setAttribute("aria-label", `${label}: ${hourCondition}, ${formatTemperature(hourly.temperature_2m[index])} degrees, ${rain ?? "unknown"} percent chance of precipitation`);
+        card.innerHTML = `<span class="hour-time">${label}</span><span class="hour-icon" aria-hidden="true">${hourIcon}</span><div class="hour-temp">${formatTemperature(hourly.temperature_2m[index])}°</div><div class="hour-rain">☂ ${rain ?? "—"}%</div>`;
+        hourlyForecast.append(card);
+      }
 
       const forecast = $("forecast");
       forecast.replaceChildren();
@@ -430,6 +496,7 @@
           latitude: location.latitude,
           longitude: location.longitude,
           current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
+          hourly: "temperature_2m,weather_code,precipitation_probability",
           daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max,sunrise,sunset",
           timezone: location.timezone || "auto",
           forecast_days: "5"
