@@ -119,6 +119,18 @@
     .search button:hover { transform: translateY(-1px); }
     .search button:disabled { cursor: wait; opacity: .65; }
 
+    .quick-cities { display: flex; flex-wrap: wrap; gap: 7px; margin: 11px 4px 0; }
+    .quick-city {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+    .quick-city:hover { border-color: var(--blue); color: var(--blue); }
     .notice { min-height: 20px; margin: 9px 5px 12px; color: var(--muted); font-size: 12px; }
     .notice.error { color: #d65b57; }
     .weather-card {
@@ -239,6 +251,12 @@
       <input id="city-input" type="search" placeholder="Search any city..." autocomplete="off" required>
       <button id="search-button" type="submit" aria-label="Search city">⌕</button>
     </form>
+    <nav class="quick-cities" aria-label="Popular nearby cities">
+      <button class="quick-city" type="button" data-city="Kabankalan">Kabankalan</button>
+      <button class="quick-city" type="button" data-city="Bacolod">Bacolod</button>
+      <button class="quick-city" type="button" data-city="Iloilo City">Iloilo</button>
+      <button class="quick-city" type="button" data-city="Cebu City">Cebu</button>
+    </nav>
     <p class="notice" id="notice" role="status" aria-live="polite"></p>
 
     <section class="weather-card" aria-label="Current weather">
@@ -421,6 +439,9 @@
     });
 
     $("refresh-button").addEventListener("click", () => getWeather(currentCity));
+    document.querySelectorAll(".quick-city").forEach((button) => {
+      button.addEventListener("click", () => getWeather(button.dataset.city));
+    });
     $("unit-toggle").addEventListener("click", () => {
       temperatureUnit = temperatureUnit === "C" ? "F" : "C";
       $("unit-toggle").textContent = `°${temperatureUnit}`;
