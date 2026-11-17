@@ -207,6 +207,7 @@
     .day-icon { display: block; margin: 12px 0; font-size: 26px; }
     .day-high { font-size: 14px; font-weight: 700; }
     .day-low { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .day-rain { margin-top: 8px; color: var(--blue); font-size: 11px; font-weight: 650; }
     .footer { margin-top: 22px; color: var(--muted); font-size: 11px; text-align: center; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
 
@@ -285,7 +286,8 @@
         time: [],
         weather_code: [2, 3, 61, 2, 1],
         temperature_2m_max: [31, 32, 30, 31, 32],
-        temperature_2m_min: [24, 24, 23, 24, 24]
+        temperature_2m_min: [24, 24, 23, 24, 24],
+        precipitation_probability_max: [20, 10, 75, 25, 10]
       }
     };
 
@@ -356,8 +358,9 @@
         card.className = "day-card";
         const dateObj = new Date(`${date}T12:00:00`);
         const day = index === 0 ? "Today" : new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(dateObj);
-        card.setAttribute("aria-label", `${day}: ${dayCondition}, high ${formatTemperature(daily.temperature_2m_max[index])} degrees, low ${formatTemperature(daily.temperature_2m_min[index])} degrees`);
-        card.innerHTML = `<span class="day-name">${day}</span><span class="day-icon" aria-hidden="true">${dayIcon}</span><div class="day-high">${formatTemperature(daily.temperature_2m_max[index])}°</div><div class="day-low">${formatTemperature(daily.temperature_2m_min[index])}°</div>`;
+        const rainChance = daily.precipitation_probability_max[index];
+        card.setAttribute("aria-label", `${day}: ${dayCondition}, high ${formatTemperature(daily.temperature_2m_max[index])} degrees, low ${formatTemperature(daily.temperature_2m_min[index])} degrees, ${rainChance ?? "unknown"} percent chance of precipitation`);
+        card.innerHTML = `<span class="day-name">${day}</span><span class="day-icon" aria-hidden="true">${dayIcon}</span><div class="day-high">${formatTemperature(daily.temperature_2m_max[index])}°</div><div class="day-low">${formatTemperature(daily.temperature_2m_min[index])}°</div><div class="day-rain">☂ ${rainChance ?? "—"}%</div>`;
         forecast.append(card);
       });
     }
@@ -384,7 +387,7 @@
           latitude: location.latitude,
           longitude: location.longitude,
           current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
-          daily: "weather_code,temperature_2m_max,temperature_2m_min",
+          daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
           timezone: location.timezone || "auto",
           forecast_days: "5"
         });
