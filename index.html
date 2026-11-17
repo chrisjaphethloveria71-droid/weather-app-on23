@@ -134,6 +134,21 @@
       pointer-events: none;
     }
     .place-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .place-actions { display: flex; align-items: center; gap: 8px; }
+    .refresh-button {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--muted);
+      background: var(--surface);
+      cursor: pointer;
+      font: inherit;
+      font-size: 17px;
+    }
+    .refresh-button:disabled { cursor: wait; opacity: .55; }
     .place { margin: 5px 0 0; font-size: 23px; font-weight: 720; letter-spacing: -.045em; }
     .local-date { margin-top: 5px; color: var(--muted); font-size: 13px; }
     .live-pill {
@@ -218,7 +233,10 @@
             <h1 class="place" id="place">Kabankalan City, Philippines</h1>
             <div class="local-date" id="date"></div>
           </div>
-          <div class="live-pill" id="status"><span class="live-dot"></span><span id="status-text">Live weather</span></div>
+          <div class="place-actions">
+            <div class="live-pill" id="status"><span class="live-dot"></span><span id="status-text">Live weather</span></div>
+            <button class="refresh-button" id="refresh-button" type="button" aria-label="Refresh weather" title="Refresh weather" disabled>↻</button>
+          </div>
         </div>
         <div class="temperature-row">
           <div>
@@ -257,6 +275,7 @@
     };
 
     const $ = (id) => document.getElementById(id);
+    let currentCity = "Kabankalan";
     async function fetchJson(url) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
@@ -326,8 +345,11 @@
     async function getWeather(cityName) {
       const notice = $("notice");
       const button = $("search-button");
+      const refreshButton = $("refresh-button");
       const input = $("city-input");
+      currentCity = cityName;
       button.disabled = true;
+      refreshButton.disabled = true;
       notice.className = "notice";
       notice.textContent = "Finding your forecast...";
       try {
@@ -364,6 +386,7 @@
         }
       } finally {
         button.disabled = false;
+        refreshButton.disabled = false;
         input.value = "";
       }
     }
@@ -374,6 +397,7 @@
       if (city) getWeather(city);
     });
 
+    $("refresh-button").addEventListener("click", () => getWeather(currentCity));
     getWeather("Kabankalan");
   </script>
 </body>
