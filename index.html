@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f7fc">
+  <title>Weather — a little forecast</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --page: #f3f7fc;
+      --surface: rgba(255, 255, 255, .86);
+      --surface-solid: #fff;
+      --ink: #17283e;
+      --muted: #78889d;
+      --line: #e7edf5;
+      --blue: #3878e8;
+      --blue-soft: #eaf2ff;
+      --sun: #f5a623;
+      --shadow: 0 20px 60px rgba(49, 78, 118, .10);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #101722;
+        --surface: rgba(27, 38, 53, .9);
+        --surface-solid: #1b2635;
+        --ink: #edf4ff;
+        --muted: #9cabc0;
+        --line: #2b394b;
+        --blue: #81aaff;
+        --blue-soft: #253852;
+        --sun: #ffd078;
+        --shadow: 0 20px 60px rgba(0, 0, 0, .28);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      padding: 48px 20px;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 50% -10%, rgba(116, 172, 255, .19), transparent 42%),
+        var(--page);
+      font-size: 15px;
+    }
+
+    .app { width: min(100%, 520px); margin: 0 auto; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 720; letter-spacing: -.03em; }
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: 12px;
+      color: #fff;
+      background: linear-gradient(145deg, #70bbff, #3974e8);
+      box-shadow: 0 5px 14px rgba(57, 116, 232, .24);
+      font-size: 18px;
+    }
+    .eyebrow { color: var(--muted); font-size: 12px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }
+
+    .search {
+      display: flex;
+      gap: 8px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: 0 5px 20px rgba(49, 78, 118, .04);
+    }
+    .search input {
+      flex: 1;
+      width: 0;
+      min-width: 0;
+      padding: 0 12px;
+      border: 0;
+      outline: 0;
+      color: var(--ink);
+      background: transparent;
+      font: inherit;
+    }
+    .search input::placeholder { color: var(--muted); }
+    .search:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 15%, transparent); }
+    .search button {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 0;
+      border-radius: 12px;
+      color: #fff;
+      background: var(--blue);
+      cursor: pointer;
+      font-size: 19px;
+      transition: transform .18s ease, opacity .18s ease;
+    }
+    .search button:hover { transform: translateY(-1px); }
+    .search button:disabled { cursor: wait; opacity: .65; }
+
+    .notice { min-height: 20px; margin: 9px 5px 12px; color: var(--muted); font-size: 12px; }
+    .notice.error { color: #d65b57; }
+    .weather-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .current {
+      position: relative;
+      padding: 25px 26px 23px;
+      background: linear-gradient(125deg, var(--blue-soft), transparent 76%);
+    }
+    .current::after {
+      position: absolute;
+      top: -64px;
+      right: -54px;
+      width: 210px;
+      height: 210px;
+      border: 1px solid color-mix(in srgb, var(--blue) 12%, transparent);
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+    }
+    .place-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .place { margin: 5px 0 0; font-size: 23px; font-weight: 720; letter-spacing: -.045em; }
+    .local-date { margin-top: 5px; color: var(--muted); font-size: 13px; }
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface);
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #45bd8a; box-shadow: 0 0 0 3px rgba(69, 189, 138, .13); }
+    .live-pill.offline .live-dot { background: var(--sun); box-shadow: 0 0 0 3px rgba(245, 166, 35, .15); }
+    .temperature-row { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+    .temperature { font-size: clamp(70px, 17vw, 94px); font-weight: 620; line-height: .96; letter-spacing: -.085em; }
+    .temperature sup { position: relative; top: -1.05em; margin-left: 5px; font-size: .29em; font-weight: 560; letter-spacing: -.02em; }
+    .condition { margin: 11px 0 0 5px; color: var(--muted); font-size: 15px; }
+    .weather-icon { margin-right: 16px; font-size: clamp(70px, 18vw, 98px); line-height: 1; filter: drop-shadow(0 10px 12px rgba(68, 109, 161, .14)); }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 15px 20px 19px; border-top: 1px solid var(--line); }
+    .metric { padding: 11px 10px; border-radius: 14px; background: color-mix(in srgb, var(--surface-solid) 62%, transparent); }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { display: block; margin-top: 6px; font-size: 16px; font-weight: 680; letter-spacing: -.025em; }
+    .metric-icon { margin-right: 4px; font-size: 13px; }
+    .forecast-section { margin-top: 27px; }
+    .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 13px; }
+    .section-heading h2 { margin: 0; font-size: 16px; font-weight: 720; letter-spacing: -.025em; }
+    .section-heading span { color: var(--muted); font-size: 12px; }
+    .forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
+    .day-card {
+      min-width: 0;
+      padding: 15px 5px 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      text-align: center;
+      transition: transform .18s ease, border-color .18s ease;
+    }
+    .day-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--blue) 45%, var(--line)); }
+    .day-name { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .day-icon { display: block; margin: 12px 0; font-size: 26px; }
+    .day-high { font-size: 14px; font-weight: 700; }
+    .day-low { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .footer { margin-top: 22px; color: var(--muted); font-size: 11px; text-align: center; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+
+    @media (max-width: 420px) {
+      body { padding: 28px 14px; }
+      .current { padding: 22px 19px 19px; }
+      .metrics { padding: 12px 13px 15px; gap: 7px; }
+      .metric { padding: 10px 7px; }
+      .day-card { padding-right: 2px; padding-left: 2px; }
+      .forecast { gap: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">☀</span> skyscape</div>
+      <span class="eyebrow">Your daily outlook</span>
+    </header>
+
+    <form class="search" id="search-form" role="search">
+      <label class="sr-only" for="city-input">Search for a city</label>
+      <input id="city-input" type="search" placeholder="Search any city..." autocomplete="off" required>
+      <button id="search-button" type="submit" aria-label="Search city">⌕</button>
+    </form>
+    <p class="notice" id="notice" role="status" aria-live="polite"></p>
+
+    <section class="weather-card" aria-label="Current weather">
+      <div class="current">
+        <div class="place-line">
+          <div>
+            <div class="eyebrow">Now in</div>
+            <h1 class="place" id="place">Kabankalan City, Philippines</h1>
+            <div class="local-date" id="date"></div>
+          </div>
+          <div class="live-pill" id="status"><span class="live-dot"></span><span id="status-text">Live weather</span></div>
+        </div>
+        <div class="temperature-row">
+          <div>
+            <div class="temperature"><span id="temperature">--</span><sup>°C</sup></div>
+            <p class="condition" id="condition">Loading weather...</p>
+          </div>
+          <div class="weather-icon" id="weather-icon" aria-hidden="true">🌤️</div>
+        </div>
+      </div>
+      <div class="metrics" aria-label="Weather details">
+        <div class="metric"><span class="metric-label"><span class="metric-icon">🌡</span> Feels like</span><strong class="metric-value" id="feels-like">--°</strong></div>
+        <div class="metric"><span class="metric-label"><span class="metric-icon">💧</span> Humidity</span><strong class="metric-value" id="humidity">--%</strong></div>
+        <div class="metric"><span class="metric-label"><span class="metric-icon">💨</span> Wind</span><strong class="metric-value" id="wind">-- km/h</strong></div>
+      </div>
+    </section>
+
+    <section class="forecast-section" aria-labelledby="forecast-title">
+      <div class="section-heading">
+        <h2 id="forecast-title">5-day forecast</h2>
+        <span>High &amp; low</span>
+      </div>
+      <div class="forecast" id="forecast"></div>
+    </section>
+    <footer class="footer">Weather data by Open-Meteo</footer>
+  </main>
+
+  <script>
+    const fallback = {
+      current: { temperature_2m: 29, apparent_temperature: 33, relative_humidity_2m: 78, wind_speed_10m: 8, weather_code: 2 },
+      daily: {
+        time: [],
+        weather_code: [2, 3, 61, 2, 1],
+        temperature_2m_max: [31, 32, 30, 31, 32],
+        temperature_2m_min: [24, 24, 23, 24, 24]
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    async function fetchJson(url) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error("Weather service returned an error");
+        return await response.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function fallbackForToday() {
+      const today = new Date();
+      const localDate = (offset) => {
+        const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      };
+      return { ...fallback, daily: { ...fallback.daily, time: [0, 1, 2, 3, 4].map(localDate) } };
+    }
+
+    const weatherForCode = (code) => {
+      if (code === 0) return ["Clear sky", "☀️"];
+      if (code === 1) return ["Mostly clear", "🌤️"];
+      if (code === 2) return ["Partly cloudy", "⛅"];
+      if (code === 3) return ["Overcast", "☁️"];
+      if ([45, 48].includes(code)) return ["Foggy", "🌫️"];
+      if ([51, 53, 55, 56, 57].includes(code)) return ["Drizzle", "🌦️"];
+      if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return ["Rain", "🌧️"];
+      if ([71, 73, 75, 77, 85, 86].includes(code)) return ["Snow", "❄️"];
+      if ([95, 96, 99].includes(code)) return ["Thunderstorm", "⛈️"];
+      return ["Variable clouds", "🌥️"];
+    };
+
+    function render(data, city, country, timezone) {
+      const current = data.current;
+      const daily = data.daily;
+      const place = [city, country].filter(Boolean).join(", ");
+      $("place").textContent = place || "Kabankalan City, Philippines";
+      $("temperature").textContent = Math.round(current.temperature_2m);
+      $("feels-like").textContent = `${Math.round(current.apparent_temperature)}°`;
+      $("humidity").textContent = `${current.relative_humidity_2m}%`;
+      $("wind").textContent = `${Math.round(current.wind_speed_10m)} km/h`;
+      const [condition, icon] = weatherForCode(current.weather_code);
+      $("condition").textContent = condition;
+      $("weather-icon").textContent = icon;
+
+      const today = new Date();
+      $("date").textContent = new Intl.DateTimeFormat(undefined, {
+        weekday: "long", month: "long", day: "numeric", timeZone: timezone || undefined
+      }).format(today);
+
+      const forecast = $("forecast");
+      forecast.replaceChildren();
+      daily.time.slice(0, 5).forEach((date, index) => {
+        const [dayCondition, dayIcon] = weatherForCode(daily.weather_code[index]);
+        const card = document.createElement("article");
+        card.className = "day-card";
+        const dateObj = new Date(`${date}T12:00:00`);
+        const day = index === 0 ? "Today" : new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(dateObj);
+        card.setAttribute("aria-label", `${day}: ${dayCondition}, high ${Math.round(daily.temperature_2m_max[index])} degrees, low ${Math.round(daily.temperature_2m_min[index])} degrees`);
+        card.innerHTML = `<span class="day-name">${day}</span><span class="day-icon" aria-hidden="true">${dayIcon}</span><div class="day-high">${Math.round(daily.temperature_2m_max[index])}°</div><div class="day-low">${Math.round(daily.temperature_2m_min[index])}°</div>`;
+        forecast.append(card);
+      });
+    }
+
+    async function getWeather(cityName) {
+      const notice = $("notice");
+      const button = $("search-button");
+      const input = $("city-input");
+      button.disabled = true;
+      notice.className = "notice";
+      notice.textContent = "Finding your forecast...";
+      try {
+        const geoUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
+        geoUrl.search = new URLSearchParams({ name: cityName, count: "1", language: "en", format: "json" });
+        const geoData = await fetchJson(geoUrl);
+        const location = geoData.results && geoData.results[0];
+        if (!location) throw new Error("We couldn't find that city. Try another name.");
+
+        const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
+        weatherUrl.search = new URLSearchParams({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
+          daily: "weather_code,temperature_2m_max,temperature_2m_min",
+          timezone: location.timezone || "auto",
+          forecast_days: "5"
+        });
+        const data = await fetchJson(weatherUrl);
+        render(data, location.name, location.country, data.timezone);
+        $("status").classList.remove("offline");
+        $("status-text").textContent = "Live weather";
+        notice.textContent = "";
+      } catch (error) {
+        if (/couldn't find/.test(error.message)) {
+          notice.className = "notice error";
+          notice.textContent = error.message;
+        } else {
+          const isKabankalan = cityName.toLowerCase().includes("kabankalan");
+          render(fallbackForToday(), isKabankalan ? "Kabankalan City" : cityName.trim() || "Kabankalan City", isKabankalan || !cityName.trim() ? "Philippines" : "", "Asia/Manila");
+          $("status").classList.add("offline");
+          $("status-text").textContent = "Offline mode";
+          notice.textContent = "Live data is unavailable right now. Showing a sample forecast.";
+        }
+      } finally {
+        button.disabled = false;
+        input.value = "";
+      }
+    }
+
+    $("search-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const city = $("city-input").value.trim();
+      if (city) getWeather(city);
+    });
+
+    getWeather("Kabankalan");
+  </script>
+</body>
+</html>
