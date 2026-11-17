@@ -258,6 +258,7 @@
       <button class="quick-city" type="button" data-city="Bacolod">Bacolod</button>
       <button class="quick-city" type="button" data-city="Iloilo City">Iloilo</button>
       <button class="quick-city" type="button" data-city="Cebu City">Cebu</button>
+      <button class="quick-city" id="location-button" type="button">⌖ Use my location</button>
     </nav>
     <p class="notice" id="notice" role="status" aria-live="polite"></p>
 
@@ -316,6 +317,7 @@
 
     const $ = (id) => document.getElementById(id);
     let currentCity = "Kabankalan";
+    let currentCoordinates = null;
     let temperatureUnit = "C";
     let lastWeather = null;
     const formatTemperature = (celsius) => Math.round(temperatureUnit === "F" ? celsius * 9 / 5 + 32 : celsius);
@@ -395,21 +397,27 @@
       });
     }
 
-    async function getWeather(cityName) {
+    async function getWeather(cityName, coordinates = null) {
       const notice = $("notice");
       const button = $("search-button");
       const refreshButton = $("refresh-button");
       const input = $("city-input");
       currentCity = cityName;
+      currentCoordinates = coordinates;
       button.disabled = true;
       refreshButton.disabled = true;
       notice.className = "notice";
       notice.textContent = "Finding your forecast...";
       try {
-        const geoUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
-        geoUrl.search = new URLSearchParams({ name: cityName, count: "1", language: "en", format: "json" });
-        const geoData = await fetchJson(geoUrl);
-        const location = geoData.results && geoData.results[0];
+        let location;
+        if (coordinates) {
+          location = { name: cityName, latitude: coordinates.latitude, longitude: coordinates.longitude, timezone: "auto", country: "" };
+        } else {
+          const geoUrl = new URL("https://geocoding-api.open-meteo.com/v1/search");
+          geoUrl.search = new URLSearchParams({ name: cityName, count: "1", language: "en", format: "json" });
+          const geoData = await fetchJson(geoUrl);
+          location = geoData.results && geoData.results[0];
+        }
         if (!location) throw new Error("We couldn't find that city. Try another name.");
 
         const weatherUrl = new URL("https://api.open-meteo.com/v1/forecast");
@@ -450,7 +458,33 @@
       if (city) getWeather(city);
     });
 
-    $("refresh-button").addEventListener("click", () => getWeather(currentCity));
+    $("refresh-button").addEventListener("click", () => getWeather(currentCity, currentCoordinates));
+    $("location-button").addEventListener("click", () => {
+      const locationButton = $("location-button");
+      if (!navigator.geolocation) {
+        $("notice").className = "notice error";
+        $("notice").textContent = "Location access is not available in this browser.";
+        return;
+      }
+
+      locationButton.disabled = true;
+      $("notice").className = "notice";
+      $("notice").textContent = "Requesting your location...";
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => {
+          locationButton.disabled = false;
+          getWeather("Your location", { latitude: coords.latitude, longitude: coords.longitude });
+        },
+        (error) => {
+          locationButton.disabled = false;
+          $("notice").className = "notice error";
+          $("notice").textContent = error.code === error.PERMISSION_DENIED
+            ? "Location permission was denied. Search for a city instead."
+            : "Could not determine your location. Please try again.";
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+      );
+    });
     document.querySelectorAll(".quick-city").forEach((button) => {
       button.addEventListener("click", () => getWeather(button.dataset.city));
     });
