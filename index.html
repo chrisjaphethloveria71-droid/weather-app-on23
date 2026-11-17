@@ -118,6 +118,10 @@
     }
     .search button:hover { transform: translateY(-1px); }
     .search button:disabled { cursor: wait; opacity: .65; }
+    button:focus-visible {
+      outline: 3px solid var(--blue);
+      outline-offset: 3px;
+    }
 
     .quick-cities { display: flex; flex-wrap: wrap; gap: 7px; margin: 11px 4px 0; }
     .quick-city {
@@ -271,7 +275,7 @@
             <div class="local-date" id="date"></div>
           </div>
           <div class="place-actions">
-            <div class="live-pill" id="status"><span class="live-dot"></span><span id="status-text">Live weather</span></div>
+            <div class="live-pill" id="status" aria-label="Weather data status"><span class="live-dot"></span><span id="status-text">Live weather</span></div>
             <button class="refresh-button" id="refresh-button" type="button" aria-label="Refresh weather" title="Refresh weather" disabled>↻</button>
           </div>
         </div>
@@ -295,7 +299,7 @@
         <h2 id="forecast-title">5-day forecast</h2>
         <span>High &amp; low</span>
       </div>
-      <div class="forecast" id="forecast"></div>
+      <div class="forecast" id="forecast" role="list"></div>
     </section>
     <footer class="footer">Weather data by Open-Meteo</footer>
   </main>
@@ -385,6 +389,7 @@
         const [dayCondition, dayIcon] = weatherForCode(daily.weather_code[index]);
         const card = document.createElement("article");
         card.className = "day-card";
+        card.setAttribute("role", "listitem");
         const dateObj = new Date(`${date}T12:00:00`);
         const day = index === 0 ? "Today" : new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(dateObj);
         const rainChance = daily.precipitation_probability_max[index];
