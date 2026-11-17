@@ -54,6 +54,18 @@
 
     .app { width: min(100%, 520px); margin: 0 auto; }
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+    .top-tools { display: flex; align-items: center; gap: 12px; }
+    .unit-toggle {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+    }
     .brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 720; letter-spacing: -.03em; }
     .brand-mark {
       display: grid;
@@ -215,7 +227,10 @@
   <main class="app">
     <header class="topbar">
       <div class="brand"><span class="brand-mark" aria-hidden="true">☀</span> skyscape</div>
-      <span class="eyebrow">Your daily outlook</span>
+      <div class="top-tools">
+        <span class="eyebrow">Your daily outlook</span>
+        <button class="unit-toggle" id="unit-toggle" type="button" aria-label="Switch to Fahrenheit">°C</button>
+      </div>
     </header>
 
     <form class="search" id="search-form" role="search">
@@ -240,7 +255,7 @@
         </div>
         <div class="temperature-row">
           <div>
-            <div class="temperature"><span id="temperature">--</span><sup>°C</sup></div>
+            <div class="temperature"><span id="temperature">--</span><sup id="temperature-unit">°C</sup></div>
             <p class="condition" id="condition">Loading weather...</p>
           </div>
           <div class="weather-icon" id="weather-icon" aria-hidden="true">🌤️</div>
@@ -276,6 +291,9 @@
 
     const $ = (id) => document.getElementById(id);
     let currentCity = "Kabankalan";
+    let temperatureUnit = "C";
+    let lastWeather = null;
+    const formatTemperature = (celsius) => Math.round(temperatureUnit === "F" ? celsius * 9 / 5 + 32 : celsius);
     async function fetchJson(url) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
@@ -311,12 +329,14 @@
     };
 
     function render(data, city, country, timezone) {
+      lastWeather = { data, city, country, timezone };
       const current = data.current;
       const daily = data.daily;
       const place = [city, country].filter(Boolean).join(", ");
       $("place").textContent = place || "Kabankalan City, Philippines";
-      $("temperature").textContent = Math.round(current.temperature_2m);
-      $("feels-like").textContent = `${Math.round(current.apparent_temperature)}°`;
+      $("temperature").textContent = formatTemperature(current.temperature_2m);
+      $("temperature-unit").textContent = `°${temperatureUnit}`;
+      $("feels-like").textContent = `${formatTemperature(current.apparent_temperature)}°`;
       $("humidity").textContent = `${current.relative_humidity_2m}%`;
       $("wind").textContent = `${Math.round(current.wind_speed_10m)} km/h`;
       const [condition, icon] = weatherForCode(current.weather_code);
@@ -336,8 +356,8 @@
         card.className = "day-card";
         const dateObj = new Date(`${date}T12:00:00`);
         const day = index === 0 ? "Today" : new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(dateObj);
-        card.setAttribute("aria-label", `${day}: ${dayCondition}, high ${Math.round(daily.temperature_2m_max[index])} degrees, low ${Math.round(daily.temperature_2m_min[index])} degrees`);
-        card.innerHTML = `<span class="day-name">${day}</span><span class="day-icon" aria-hidden="true">${dayIcon}</span><div class="day-high">${Math.round(daily.temperature_2m_max[index])}°</div><div class="day-low">${Math.round(daily.temperature_2m_min[index])}°</div>`;
+        card.setAttribute("aria-label", `${day}: ${dayCondition}, high ${formatTemperature(daily.temperature_2m_max[index])} degrees, low ${formatTemperature(daily.temperature_2m_min[index])} degrees`);
+        card.innerHTML = `<span class="day-name">${day}</span><span class="day-icon" aria-hidden="true">${dayIcon}</span><div class="day-high">${formatTemperature(daily.temperature_2m_max[index])}°</div><div class="day-low">${formatTemperature(daily.temperature_2m_min[index])}°</div>`;
         forecast.append(card);
       });
     }
@@ -398,6 +418,12 @@
     });
 
     $("refresh-button").addEventListener("click", () => getWeather(currentCity));
+    $("unit-toggle").addEventListener("click", () => {
+      temperatureUnit = temperatureUnit === "C" ? "F" : "C";
+      $("unit-toggle").textContent = `°${temperatureUnit}`;
+      $("unit-toggle").setAttribute("aria-label", `Switch to ${temperatureUnit === "C" ? "Fahrenheit" : "Celsius"}`);
+      if (lastWeather) render(lastWeather.data, lastWeather.city, lastWeather.country, lastWeather.timezone);
+    });
     getWeather("Kabankalan");
   </script>
 </body>
